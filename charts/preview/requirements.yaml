@@ -2,12 +2,12 @@
 dependencies:
 - alias: expose
   name: exposecontroller
-  repository: https://chartmuseum.build.cd.jenkins-x.io
+  repository: http://chartmuseum.jenkins-x.io
   version: 2.3.56
 - alias: cleanup
   name: exposecontroller
-  repository: https://chartmuseum.build.cd.jenkins-x.io
+  repository: http://chartmuseum.jenkins-x.io
   version: 2.3.56
 - alias: preview
-  name: cargocms-admin-client
-  repository: file://../cargocms-admin-client
+  name: js-vue
+  repository: file://../js-vue

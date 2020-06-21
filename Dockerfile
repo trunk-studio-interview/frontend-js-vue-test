@@ -10,6 +10,6 @@ RUN npm install
 ENV PORT 4000
 ENV NODE_ENV production
 
-RUN npm run build -- --mode staging
+RUN npm run build -- --mode interview
 
 CMD ["serve", "-s", "wwwroot"]

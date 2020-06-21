@@ -1,0 +1,23 @@
+apiVersion: networking.k8s.io/v1beta1
+kind: Ingress
+metadata:
+  name: js-vue-dev
+  annotations:
+    cert-manager.io/issuer: letsencrypt-prod
+    kubernetes.io/ingress.class: "nginx"
+    ingress.kubernetes.io/ssl-redirect: "false"
+    kubernetes.io/tls-acme: "true"    
+spec:
+
+  rules:
+  - host: js-vue.jx-interview.k8s.trunksys.com
+    http:
+      paths:
+      - path: /
+        backend:
+          serviceName: js-vue
+          servicePort: 80
+  tls:
+  - hosts:
+    - js-vue.jx-interview.k8s.trunksys.com
+    secretName: tls-js-vue

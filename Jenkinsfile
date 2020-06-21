@@ -1,98 +1,103 @@
 pipeline {
-    agent {
-        label "jenkins-nodejs"
-    }
-    environment {
-      ORG               = 'cargocms'
-      APP_NAME          = 'cargocms-admin-client'
-      CHARTMUSEUM_CREDS = credentials('jenkins-x-chartmuseum')
-    }
-    stages {
-      stage('CI Build and push snapshot') {
-        when {
-          anyOf {
-            branch 'PR-*';
-            branch 'preview-*'
-            branch 'develop'
-          }
+  agent {
+    label "jenkins-nodejs"
+  }
+  environment {
+    ORG = 'trunk-studio-interview'
+    APP_NAME = 'js-vue'
+    CHARTMUSEUM_CREDS = credentials('jenkins-x-chartmuseum')
+    DB_HOST="jx-mysql"
+  }
+  stages {
+    stage('CI Build and push snapshot') {
+      when {
+        anyOf {
+          branch 'PR-*'
+          branch 'develop'
         }
-        environment {
-          PREVIEW_VERSION = "0.0.0-SNAPSHOT-$BRANCH_NAME-$BUILD_NUMBER"
-          PREVIEW_NAMESPACE = "$APP_NAME-$BRANCH_NAME".toLowerCase()
-          HELM_RELEASE = "$PREVIEW_NAMESPACE".toLowerCase()
-        }
-        steps {
-          container('nodejs') {
-            // sh "npm install"
-            // sh "CI=true DISPLAY=:99 npm test"
-            sh 'export VERSION=$PREVIEW_VERSION && skaffold build -f skaffold.yaml'
-            sh "jx step post build --image $DOCKER_REGISTRY/$ORG/$APP_NAME:$PREVIEW_VERSION"
+      }
+      environment {
+        PREVIEW_VERSION = "0.0.0-SNAPSHOT-$BRANCH_NAME-$BUILD_NUMBER"
+        PREVIEW_NAMESPACE = "$APP_NAME-$BRANCH_NAME".toLowerCase()
+        HELM_RELEASE = "$PREVIEW_NAMESPACE".toLowerCase()
+      }
+      steps {
+        container('nodejs') {
 
-          }
-          dir ('./charts/preview') {
-            container('nodejs') {
-              sh "make preview"
-              sh "jx preview --app $APP_NAME --namespace $PREVIEW_NAMESPACE --dir ../.."
-            }
+          sh "export VERSION=$PREVIEW_VERSION && skaffold build -f skaffold.yaml"
+          sh "jx step post build --image $DOCKER_REGISTRY/$ORG/$APP_NAME:$PREVIEW_VERSION"
+          dir('./charts/preview') {
+            sh "make preview"
+            sh "jx preview --app $APP_NAME --dir ../.."
           }
         }
       }
-      stage('Build Release') {
-        when {
+    }
+    stage('test') {
+      agent {
+        label "jenkins-php"
+      }      
+      when {
+        anyOf {
           branch 'staging'
-        }
-        steps {
-          container('nodejs') {
-            // ensure we're not on a detached head
-            sh "git checkout staging"
-            sh "git config --global credential.helper store"
-
-            sh "jx step git credentials"
-            // so we can retrieve the version in later steps
-            sh "echo \$(jx-release-version) > VERSION"
-          }
-
-          dir ('./charts/cargocms-admin-client') {
-            container('nodejs') {
-              sh "make tag"
-            }
-          }
-          container('nodejs') {
-            // sh "npm install"
-            // sh "CI=true DISPLAY=:99 npm test"
-
-            sh 'export VERSION=`cat VERSION` && skaffold build -f skaffold.yaml'
-
-            sh "jx step post build --image $DOCKER_REGISTRY/$ORG/$APP_NAME:\$(cat VERSION)"
-          }
+          branch 'staging-*'
         }
       }
-      stage('Promote to Environments') {
-        when {
-          branch 'staging'
+      steps {
+        container('php') {
+          sh "COMPOSER_MEMORY_LIMIT=-1 composer install"
+          sh "make run-test"
+          junit 'results/phpunit/junit.xml'
+        }        
+      }
+    } 
+
+    stage('Build Release') {
+      when {
+        anyOf {
+          branch 'interview-*'
         }
-        steps {
-          dir ('./charts/cargocms-admin-client') {
-            container('nodejs') {
-              sh 'jx step changelog --version v\$(cat ../../VERSION)'
-              // release the helm chart
-              sh 'jx step helm release'
-              // promote through all 'Auto' promotion Environments
-              sh 'jx promote -b --env staging --timeout 1h --version \$(cat ../../VERSION) --no-wait=true --no-poll=true'
-            }
-          }
+      }
+      steps {
+        container('nodejs') {
+
+          // ensure we're not on a detached head
+          sh "git checkout $BRANCH_NAME"
+          sh "git config --global credential.helper store"
+          sh "jx step git credentials"
+
+          // so we can retrieve the version in later steps
+          sh "echo \$(jx-release-version) > VERSION"
+          sh "jx step tag --version \$(cat VERSION)"
+          sh "export VERSION=`cat VERSION` && skaffold build -f skaffold.yaml"
+          sh "jx step post build --image $DOCKER_REGISTRY/$ORG/$APP_NAME:\$(cat VERSION)"
         }
       }
     }
-    post {
-        always {
-            cleanWs()
+    stage('Promote to Environments') {
+      when {
+        anyOf {
+          branch 'interview-*'
         }
-        failure {
-            input """Pipeline failed.
-We will keep the build pod around to help you diagnose any failures.
+      }
+      steps {
+        container('nodejs') {
+          dir('./charts/js-vue') {
+            sh "jx step changelog --version v\$(cat ../../VERSION)"
 
-Select Proceed or Abort to terminate the build pod"""
+            // release the helm chart
+            sh "jx step helm release"
+
+            // promote through all 'Auto' promotion Environments
+            sh "jx promote -b --env interview --timeout 1h --version \$(cat ../../VERSION) --no-wait=true --no-poll=true"
+          }
         }
+      }
     }
   }
+  post {
+        always {
+          cleanWs()
+        }
+  }
+}

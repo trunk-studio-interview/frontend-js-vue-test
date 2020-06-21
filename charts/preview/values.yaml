@@ -16,7 +16,6 @@ cleanup:
     helm.sh/hook-delete-policy: hook-succeeded
 
 preview:
-  apiServiceName: cargocms-admin-client
   image:
     repository:
     tag:
