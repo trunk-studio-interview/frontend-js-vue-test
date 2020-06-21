@@ -6,7 +6,6 @@ pipeline {
     ORG = 'trunk-studio-interview'
     APP_NAME = 'js-vue'
     CHARTMUSEUM_CREDS = credentials('jenkins-x-chartmuseum')
-    DB_HOST="jx-mysql"
   }
   stages {
     stage('CI Build and push snapshot') {
@@ -33,24 +32,7 @@ pipeline {
         }
       }
     }
-    stage('test') {
-      agent {
-        label "jenkins-php"
-      }      
-      when {
-        anyOf {
-          branch 'staging'
-          branch 'staging-*'
-        }
-      }
-      steps {
-        container('php') {
-          sh "COMPOSER_MEMORY_LIMIT=-1 composer install"
-          sh "make run-test"
-          junit 'results/phpunit/junit.xml'
-        }        
-      }
-    } 
+
 
     stage('Build Release') {
       when {
