@@ -4,6 +4,14 @@ import axios from 'axios';
 
 Vue.use(Vuex);
 
+const appAxios = axios.create({
+  baseURL: process.env.VUE_APP_API_ENDPOINT,
+  headers: {
+    'Content-Type': 'application/json',
+  },
+});
+
+
 export default new Vuex.Store({
   state: {
     auth: {},
@@ -16,8 +24,8 @@ export default new Vuex.Store({
   },
   actions: {
     login({ commit }) {
-      axios
-        .post('/api/auth/login', { email: 'admin@example.com', password: 'admin' })
+      appAxios
+        .post('/auth/login', { email: 'admin@example.com', password: 'admin' })
         .then((result) => {
           commit('USER_LOGIN', result.data);
         })
